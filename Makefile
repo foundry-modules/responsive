@@ -1,11 +1,5 @@
+all: modularize-script minify-script
+
 include ../../build/modules.mk
 
 MODULE = responsive
-FILENAME = ${MODULE}.js
-SOURCE = ${SOURCE_DIR}/jquery.${MODULE}.js
-PRODUCTION = ${PRODUCTION_DIR}/${FILENAME}
-DEVELOPMENT = ${DEVELOPMENT_DIR}/${FILENAME}
-
-all:
-	${MODULARIZE} -n "${MODULE}" ${SOURCE} > ${DEVELOPMENT}
-	${UGLIFYJS} ${DEVELOPMENT} > ${PRODUCTION}

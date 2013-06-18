@@ -173,10 +173,13 @@ $.responsive.deresize = function(condition) {
 $.responsive.resetToDefault = function(options, current) {
 	var node = this;
 	$.each(options, function(i, condition) {
+
+		var conditionOptions = $.responsive.properConditions(condition);
+
 		if (current && i == current) {
 			return true;
 		} else {
-			$.responsive.deresize.call(node, condition);
+			$.responsive.deresize.call(node, conditionOptions);
 		}
 	});
 };

@@ -1,4 +1,4 @@
-all: wrap-script resolve-namespace minify-script
+all: wrap-script minify-script
 
 include ../../build/modules.mk
 

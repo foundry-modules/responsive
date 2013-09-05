@@ -1,7 +1,6 @@
 // $(selector).responsive({condition});
 // $(selector).responsive([{condition1}, {condition2}]);
-$.fn.responsive = function() {
-	var node = this;
+$.fn.responsive = function(conditions) {
 
 	/* conditions = {
 		at: 0, // threshold value
@@ -14,14 +13,20 @@ $.fn.responsive = function() {
 		reverseFunction: ''
 	} */
 
-	var options = {
-		elementWidth: function() {
-			return $(node).outerWidth(true);
-		},
-		conditions: $.makeArray(arguments)
-	};
+	if (conditions) {
+		
+		var elem = this,
+			options = {
+				elementWidth: function() {
+					return elem.outerWidth(true);
+				},
+				conditions: conditions
+			};
 
-	$.responsive.process.call(node, options);
+		$.responsive(elem, options);
+	}
+
+	return this;
 };
 
 /*
@@ -39,77 +44,108 @@ $.responsive({
 	condition2
 }]);
 */
+
+/*var defaultOptions = {
+	// main element width to calculate
+	elementWidth: function() {}, // a function that returns pixel value
+
+	// array of conditions of ascending thresholdWidth
+	conditions: [{
+
+		// threshold for this condition
+		at: 0,
+
+		// condition specific options
+		switchTo: '',
+		alsoSwitch: {}, //  objects with element and class
+		switchStylesheet: '',
+		targetFunction: '', // function to run
+		reverseFunction: '' // reverse function that reverses any action in target function
+	}]
+}*/
+
 $.responsive = function(elem, options) {
-	// make sure that single condition object gets convert into array any how
+
+	// Make sure that single condition object gets convert into array any how
 	options.conditions = $.makeArray(options.conditions);
 
-	/*var defaultOptions = {
-		// main element width to calculate
-		elementWidth: function() {}, // a function that returns pixel value
+	// Accept node, selectors, jQuery elements.
+	var elem = $(elem);
+		
+		resizeWindow = $(window),
 
-		// array of conditions of ascending thresholdWidth
-		conditions: [{
+		// Debounce resize handler to ensure it won't
+		// choke up browser when window is resized.
+		resizeHandler =
+			$.debounce(function(){
+				$.responsive.update.call(elem, options);
+			}, 250),
 
-			// threshold for this condition
-			at: 0,
+		// Get resize event namespace if it exists
+		resizeEvent = elem.data("responsiveResize") ||
 
-			// condition specific options
-			switchTo: '',
-			alsoSwitch: {}, //  objects with element and class
-			switchStylesheet: '',
-			targetFunction: '', // function to run
-			reverseFunction: '' // reverse function that reverses any action in target function
-		}]
-	}*/
+			// Create a new resize event namespace if it
+			// hasn't been created yet for this element.
+			(function(){
+				resizeEvent = "resize." + $.uid();
+				elem.data("responsiveResize", resizeEvent);
+				return resizeEvent;
+			})();
 
-	$.responsive.process.call($(elem), options);
+	resizeWindow
+		// Ensure any previous resize handler is unbinded
+		.off(resizeEvent)
+		// before we bind a new resize handler with new options.
+		.on(resizeEvent, resizeHandler);
+
+	// This is debounced, if there were multiple $.fn.responsive()
+	// being called in a single chain, only the last one gets executed.
+	resizeHandler();
 };
 
-$.responsive.process = function(options) {
-	var node = this;
-	var totalConditions = options.conditions.length;
+$.responsive.update = function(options) {
 
-	$(window).resize(function() {
-		$.responsive.sortConditions(options);
+	var node = this,
+		totalConditions = options.conditions.length;
 
-		var elementWidth;
+	$.responsive.sortConditions(options);
 
-		// calculate element width
-		if ($.isFunction(options.elementWidth)) {
-			elementWidth = options.elementWidth();
+	var elementWidth;
+
+	// calculate element width
+	if ($.isFunction(options.elementWidth)) {
+		elementWidth = options.elementWidth();
+	} else {
+		elementWidth = options.elementWidth;
+	}
+
+	// loop through each condition
+	$.each(options.conditions, function(i, condition) {
+		var conditionOptions = $.responsive.properConditions(condition);
+
+		var thresholdWidth = condition.at;
+
+		// calculate threshold width
+		if ($.isFunction(condition.at)) {
+			thresholdWidth = condition.at();
 		} else {
-			elementWidth = options.elementWidth;
+			thresholdWidth = condition.at;
 		}
 
-		// loop through each condition
-		$.each(options.conditions, function(i, condition) {
-			var conditionOptions = $.responsive.properConditions(condition);
+		// perform resize if element <= threshold
+		if (elementWidth <= thresholdWidth) {
 
-			var thresholdWidth = condition.at;
+			// remove all other condition first
+			$.responsive.resetToDefault.call(node, options.conditions, i);
 
-			// calculate threshold width
-			if ($.isFunction(condition.at)) {
-				thresholdWidth = condition.at();
-			} else {
-				thresholdWidth = condition.at;
-			}
-
-			// perform resize if element <= threshold
-			if (elementWidth <= thresholdWidth) {
-
-				// remove all other condition first
-				$.responsive.resetToDefault.call(node, options.conditions, i);
-
-				// apply current condition
-				$.responsive.resize.call(node, conditionOptions);
-				return false;
-			} else {
-				$.responsive.deresize.call(node, conditionOptions);
-			}
-		});
-
-	}).resize();
-};
+			// apply current condition
+			$.responsive.resize.call(node, conditionOptions);
+			return false;
+		} else {
+			$.responsive.deresize.call(node, conditionOptions);
+		}
+	});
+}
 
 $.responsive.resize = function(condition) {
 	var node = this;

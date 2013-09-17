@@ -140,6 +140,8 @@ $.extend(Responsive.prototype, {
 			$isFunc(whenApplied) && whenApplied();
 
 		this.currentCondition = condition;
+
+		this.elem.trigger("responsive", [condition]);
 	},
 
 	removeCondition: function(condition) {

@@ -72,12 +72,25 @@ var Responsive = function(elem, options) {
 
 	// Store instance within element
 	elem.data("$responsive", self)
+	
+	// Wait until document is ready before
+	// applying responsive events
+	$(function(){
 
-	// Attach resize handler to window
-	$window.on(self.event, self.handler);
+		// Attach resize handler to window
+		$window.on(self.event, self.handler);
 
-	// Set conditions
-	self.set();
+		// Set conditions
+		self.set();
+
+	});
+
+	// Set conditions once again
+	// on window load event.
+	$(window).load(function(){
+
+		self.set();
+	});
 }
 
 $.extend(Responsive.prototype, {

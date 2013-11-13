@@ -33,7 +33,7 @@ $.fn.responsive = function(conditions) {
 		
 		var elem = this,
 			options = {
-				elementWidth: function() {
+				elementWidth: function(elem) {
 					return elem.outerWidth(true);
 				},
 				conditions: conditions
@@ -97,34 +97,37 @@ $.extend(Responsive.prototype, {
 
 	set: function() {
 
-		var self = this;
+		var self = this,
+			elementWidth = self.options.elementWidth;
 
-		// Remove current condition
-		self.removeCondition(self.currentCondition);
+		self.elem.each(function(){
 
-		// Get width
-		var elementWidth = self.options.elementWidth,
-			currentWidth = ($isFunc(elementWidth)) ? elementWidth() : elementWidth;
+			var elem = $(this),
+				currentWidth = ($isFunc(elementWidth)) ? elementWidth(elem) : elementWidth;
 
-		// Analyze all conditions
-		$.each(self.conditions, function(i, condition) {
+			// Remove current condition
+			self.removeCondition(elem.data("currentCondition"), elem);
 
-			var thresholdWidth = condition.at;
+			// Analyze all conditions
+			$.each(self.conditions, function(i, condition) {
 
-			if (currentWidth <= thresholdWidth) {
-				self.applyCondition(condition);
-				return false;
-			}
+				var thresholdWidth = condition.at;
+
+				if (currentWidth <= thresholdWidth) {
+					self.applyCondition(condition, elem);
+					return false;
+				}
+			});
 		});
 	},
 
-	applyCondition: function(condition) {
+	applyCondition: function(condition, elem) {
 
 		var switchTo, alsoSwitch, switchStylesheet, whenApplied;
 
 		// Classnames to remove
 		(switchTo = condition.switchTo) &&
-			this.elem.addClass(switchTo);
+			elem.addClass(switchTo);
 
 		// Classnames to remove on other elements
 		(alsoSwitch = condition.alsoSwitch) &&
@@ -152,12 +155,11 @@ $.extend(Responsive.prototype, {
 		(whenApplied = condition.whenApplied) &&
 			$isFunc(whenApplied) && whenApplied();
 
-		this.currentCondition = condition;
-
-		this.elem.trigger("responsive", [condition]);
+		elem.data("currentCondition", condition)
+			.trigger("responsive", [condition]);
 	},
 
-	removeCondition: function(condition) {
+	removeCondition: function(condition, elem) {
 
 		if (!condition) return;
 
@@ -165,7 +167,7 @@ $.extend(Responsive.prototype, {
 
 		// Classnames to remove
 		(switchTo = condition.switchTo) &&
-			this.elem.removeClass(switchTo);
+			elem.removeClass(switchTo);
 
 		// Classnames to remove on other elements
 		(alsoSwitch = condition.alsoSwitch) &&
@@ -182,18 +184,29 @@ $.extend(Responsive.prototype, {
 		// Callback to execute when this condition is removed.
 		(whenRemoved = condition.whenRemoved) &&
 			$isFunc(whenRemoved) && whenRemoved();
+
+		elem.removeData("currentCondition");
 	},
 
 	resetToDefault: function(current) {
 
-		$.each(this.conditions, function(i, condition) {
+		var self = this,
+			elem = self.elem;
+
+		$.each(self.conditions, function(i, condition) {
 			if (current && i == current) return;
-			this.removeCondition(condition);
+			self.removeCondition(condition, elem);
 		});
 	},
 
 	destroy: function() {
 		$window.off(this.event);
-		this.removeCondition(this.currentCondition);
+
+		var self = this;
+
+		self.elem.each(function(){
+			var elem = $(this);
+			self.removeCondition(elem.data("currentCondition"), elem);
+		});
 	}	
 });

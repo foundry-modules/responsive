@@ -22,24 +22,30 @@
 	}]
 }*/
 
+var defaultOptions = {
+	elementWidth: function(elem) {
+		return elem.outerWidth(true);
+	}
+};
+
 $.responsive = function(elem, options) {
-	
+
+	// $.responsive(elem, conditions);
+	if ($.isArray(options)) {
+		options = {
+			conditions: options
+		}
+	}
+
+	var options = $.extend({}, defaultOptions, options);
+
 	return new Responsive(elem, options);
 };
 
 $.fn.responsive = function(conditions) {
 
 	if (conditions) {
-		
-		var elem = this,
-			options = {
-				elementWidth: function(elem) {
-					return elem.outerWidth(true);
-				},
-				conditions: conditions
-			};
-
-		$.responsive(elem, options);
+		$.responsive($(this), conditions);
 	}
 
 	return this;
@@ -50,12 +56,18 @@ var $window = $(window),
 
 var Responsive = function(elem, options) {
 
-	var self = this,
-		elem = $(elem),
-		instance = elem.data("$responsive");
+	var self = this;
 
 	// If there is an existing instance, kill it.
-	if (instance) instance.destroy();
+	$(elem).each(function(){
+
+		var elem = $(this),
+			instance = $(this).data("$responsive");
+
+		if (instance instanceof Responsive) {
+			instance.destroy();
+		}
+	});
 
 	// Construct instance
 	$.extend(self, {
@@ -63,16 +75,13 @@ var Responsive = function(elem, options) {
 		elem      : elem,
 		options   : options,
 		conditions: $.sortBy($.makeArray(options.conditions), function(condition){ return condition.at; }),
-		event     : "resize.responsive" + $.uid(),
+		event     : "resize.responsive." + $.uid(),
 		handler   : $.debounce(function(){ self.set(); }, 250)
 	});
 
 	// Delete conditions prop from options
 	delete options.conditions;
 
-	// Store instance within element
-	elem.data("$responsive", self)
-	
 	// Wait until document is ready before
 	// applying responsive events
 	$(function(){
@@ -82,7 +91,6 @@ var Responsive = function(elem, options) {
 
 		// Set conditions
 		self.set();
-
 	});
 
 	// Set conditions once again
@@ -100,10 +108,13 @@ $.extend(Responsive.prototype, {
 		var self = this,
 			elementWidth = self.options.elementWidth;
 
-		self.elem.each(function(){
+		$(self.elem).each(function(){
 
 			var elem = $(this),
 				currentWidth = ($isFunc(elementWidth)) ? elementWidth(elem) : elementWidth;
+
+			// Store instance within element
+			$(elem).data("$responsive", self);
 
 			// Remove current condition
 			self.removeCondition(elem.data("currentCondition"), elem);
@@ -191,7 +202,7 @@ $.extend(Responsive.prototype, {
 	resetToDefault: function(current) {
 
 		var self = this,
-			elem = self.elem;
+			elem = $(self.elem);
 
 		$.each(self.conditions, function(i, condition) {
 			if (current && i == current) return;
@@ -200,13 +211,19 @@ $.extend(Responsive.prototype, {
 	},
 
 	destroy: function() {
+
+		if (self.destroyed) return;
+
 		$window.off(this.event);
 
 		var self = this;
 
-		self.elem.each(function(){
+		$(self.elem).each(function(){
 			var elem = $(this);
 			self.removeCondition(elem.data("currentCondition"), elem);
+			elem.removeData("$responsive");
 		});
-	}	
+
+		self.destroyed = true;
+	}
 });
